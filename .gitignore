@@ -1,0 +1,6 @@
+*.img
+*.o
+*.elf
+*.DS_Store
+*.bin
+target/
