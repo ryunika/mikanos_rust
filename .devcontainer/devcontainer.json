@@ -12,6 +12,8 @@
         ]
 	},
 
+	"workspaceFolder": "/workspace",
+
 	// =======================================================================
 	// Uncomment to enable noVNC for GitHub Codespaces
 	// =======================================================================
@@ -52,7 +54,12 @@
 			"extensions": [
 				"ms-vscode.cpptools",
 				"rust-lang.rust-analyzer"
-			]
+			],
+			"settings": {
+				"rust-analyzer.linkedProjects": [
+   					"${containerWorkspaceFolder}/mikanos/kernel/Cargo.toml"
+  				]
+			}
 		}
 	},
 
