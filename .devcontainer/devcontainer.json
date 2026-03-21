@@ -12,6 +12,7 @@
         ]
 	},
 
+	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
 	"workspaceFolder": "/workspace",
 
 	// =======================================================================
@@ -67,6 +68,15 @@
 	// "postCreateCommand": "uname -a",
 	// "postCreateCommand": "/bin/sh .devcontainer/postCreate.sh",
 	// "postAttachCommand": "/bin/sh .devcontainer/postAttach.sh",
+
+	"features": {
+		"ghcr.io/devcontainers/features/node:1": {},
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+	},
+
+	"mounts": [
+		"source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached"
+	],
 
 	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode",
