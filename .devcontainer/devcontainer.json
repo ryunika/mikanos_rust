@@ -66,11 +66,12 @@
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "uname -a",
-	// "postCreateCommand": "/bin/sh .devcontainer/postCreate.sh",
+	"postCreateCommand": "/bin/sh .devcontainer/postCreate.sh",
 	// "postAttachCommand": "/bin/sh .devcontainer/postAttach.sh",
 
 	"features": {
 		"ghcr.io/devcontainers/features/node:1": {},
+		"ghcr.io/devcontainers/features/rust:1": {},
 		"ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
 	},
 

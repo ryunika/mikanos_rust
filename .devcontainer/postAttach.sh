@@ -1,4 +1,5 @@
 #!/bin/sh
 
-# cp /workspace/x86_devcontainer/target.txt ~/edk2/Conf/target.txt
-cp /workspaces/x86_devcontainer/target.txt ~/edk2/Conf/target.txt
+cd ~/edk2/
+cp /workspace/target.txt ~/edk2/Conf/target.txt
+[ -L MikanLoaderPkg ] || ln -s /workspace/mikanos/MikanLoaderPkg/ ./

@@ -10,4 +10,4 @@ FROM ghcr.io/sarisia/mikanos:amd64
 #     && rustup install nightly-2022-06-20 \
 #     && rustup component add rust-src --toolchain nightly-2022-06-20-x86_64-unknown-linux-gnu
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y

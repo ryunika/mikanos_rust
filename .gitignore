@@ -3,4 +3,5 @@
 *.elf
 *.DS_Store
 *.bin
+*.EFI
 target/
