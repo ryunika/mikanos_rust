@@ -13,7 +13,7 @@ MikanOS — a custom x86-64 OS built from scratch, following the book "ゼロか
 
 - **Bootloader**: use the `build-bootloader` skill
 - **Kernel**: use the `build-kernel` skill
-- **Run with QEMU**: `~/osbook/devenv/run_qemu.sh ~/edk2/Build/MikanLoaderX64/DEBUG_CLANG38/X64/Loader.efi /workspace/mikanos/kernel/kernel.elf`
+- **Run with QEMU**: use the `run-qemu` skill
 
 ## Architecture
 
