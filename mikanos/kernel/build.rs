@@ -2,6 +2,20 @@ use std::env;
 use std::path::Path;
 use std::process::Command;
 
+fn build_usb(current_dir: &Path) {
+    let usb_dir = current_dir.join("usb");
+    Command::new("make")
+        .arg("-C")
+        .arg(&usb_dir)
+        .status()
+        .unwrap();
+    println!("cargo:rustc-link-search=native={}", usb_dir.display());
+    println!("cargo:rustc-link-lib=static=usb");
+    // libc++ from osbook devenv (x86_64-elf cross-compiled libraries)
+    println!("cargo:rustc-link-search=native=/home/vscode/osbook/devenv/x86_64-elf/lib");
+    println!("cargo:rerun-if-changed=usb/");
+}
+
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let current_dir = env::current_dir().unwrap();
@@ -38,4 +52,6 @@ fn main() {
     println!("cargo:rustc-link-search=native={}", out_dir);
     println!("cargo:rustc-link-lib=static=hankaku");
     println!("cargo:rerun-if-changed=hankaku.txt");
+
+    build_usb(&current_dir);
 }

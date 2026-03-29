@@ -6,6 +6,9 @@ use core::panic;
 use core::panic::PanicInfo;
 
 mod module;
+mod mouse;
+mod usb;
+
 use module::frame_buffer::FrameBuffer;
 use module::frame_buffer::PixelColor;
 use module::frame_buffer::PixelWriter;
@@ -19,35 +22,18 @@ use crate::module::pci::read_bar;
 use module::pci::Pci;
 use module::pci::Device;
 
-const kMouseCursorWidth: u32 = 15;
-const kMouseCursorHeight: u32 = 24;
-//char型の2次元配列
-const mouse_cursor_shape: [&str; kMouseCursorHeight as usize] = [
-    "@              ",
-    "@@             ",
-    "@.@            ",
-    "@..@           ",
-    "@...@          ",
-    "@....@         ",
-    "@.....@        ",
-    "@......@       ",
-    "@.......@      ",
-    "@........@     ",
-    "@.........@    ",
-    "@..........@   ",
-    "@...........@  ",
-    "@............@ ",
-    "@......@@@@@@@@",
-    "@......@       ",
-    "@....@@.@      ",
-    "@...@ @.@      ",
-    "@..@   @.@     ",
-    "@.@    @.@     ",
-    "@@      @.@    ",
-    "@       @.@    ",
-    "         @.@   ",
-    "         @@@   ",
-];
+/* マウスオブザーバーコールバック用のグローバル変数
+ * extern "C" fn はクロージャを持てないため static mut を使用する */
+static mut GLOBAL_WRITER: Option<PixelWriter> = None;
+static mut BG_COLOR: PixelColor = PixelColor { r: 45, g: 118, b: 237 };
+
+extern "C" fn mouse_observer(_buttons: u8, dx: i8, dy: i8) {
+    unsafe {
+        if let Some(ref w) = GLOBAL_WRITER {
+            mouse::move_relative(w, &BG_COLOR, dx, dy);
+        }
+    }
+}
 
 fn find_xhc_device(pci: &Pci) -> Option<Device> {
     const BASE_CLASS_SERIAL_BUS: u8 = 0x0c;
@@ -83,28 +69,18 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
 
     let mut console = Console::new(fg_color, bg_color);
 
-    for (y, row) in mouse_cursor_shape.iter().enumerate() {
-        for (x, c) in row.chars().enumerate() {
-            let color = match c {
-                '@' => PixelColor{r:0, g:0, b:0},
-                '.' => PixelColor{r:255, g:255, b:255},
-                _ => continue,
-            };
-            writer.write(x as u32 + 100, y as u32 + 500, &color);
-        }
-    }
+    /* 初期マウスカーソルを描画 */
+    mouse::draw(&writer);
 
     write!(&mut console, "Hello, MikanOS Console!\n");
-    write!(&mut console, "The current cursor position is at row {}, column {}.\n", 0, 0);
     console.refresh(&writer);
 
     let mut pci = Pci::new();
     if let Err(_) = pci.scan_all_bus() {
         write!(&mut console, "PCI scan failed.\n");
     }
-    pci.show_device(&mut console);
 
-    //xhciデバイスを探す
+    /* xHCI デバイスを探す */
     let xhc_dev = match find_xhc_device(&pci) {
         Some(dev) => dev,
         None => {
@@ -114,7 +90,6 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
         }
     };
 
-    /* bar0を取得する */
     let xhc_bar = match read_bar(&xhc_dev, 0) {
         Ok(bar) => bar,
         Err(_) => {
@@ -124,14 +99,32 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
         }
     };
 
-    let xhc_mmio_base = xhc_bar & !0xfu64;
-    write!(&mut console, "xHC mmio_base = {:08x}\n", xhc_mmio_base);
+    let xhc_mmio_base = (xhc_bar & !0xfu64) as usize;
 
-    console.refresh(&writer);
-
+    /* マウスオブザーバー用にライターと背景色を保存 */
     unsafe {
-        loop {
-            asm!("hlt");
+        GLOBAL_WRITER = Some(PixelWriter::new(fb));
+    }
+
+    /* USB xHCI コントローラーを初期化 */
+    match usb::global::initialize(xhc_mmio_base) {
+        Ok(()) => {
+            let xhc = usb::global::controller();
+            xhc.register_mouse_observer(mouse_observer);
+            xhc.configure_ports();
+        }
+        Err(code) => {
+            write!(&mut console, "USB init failed: {}\n", code);
+            console.refresh(&writer);
+        }
+    }
+
+    /* イベントループ（ビジーポーリング: sti 未設定のため hlt は使えない） */
+    loop {
+        if usb::global::is_initialized() {
+            while usb::global::controller().has_event() {
+                usb::global::controller().process_event();
+            }
         }
     }
 }
