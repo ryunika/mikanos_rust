@@ -1,6 +1,22 @@
 use core::arch::asm;
 use crate::module::err::{KResult,KError};
 
+
+/**
+*   @brief MSI ケーパビリティ構造
+*   @note ケーパビリティ構造は 64 ビットサポートの有無などで亜種が沢山ある．
+*         この構造体は各亜種に対応するために最大の亜種に合わせてメンバを定義してある．
+*/
+#[repr(C, packed)] 
+struct MSICapability {
+    header: u32,
+    msg_addr: u32,
+    msg_upper_addr: u32,
+    msg_data: u32,
+    mask_bits: u32,
+    pending_bits: u32,
+}
+
 /* PCIデバイスのクラスコード */
 #[derive(Copy,Clone)]
 pub struct ClassCode {
@@ -339,5 +355,123 @@ pub fn read_bar(dev: &Device, bar_index: usize) -> KResult<u64> {
         let bar: u64 = ((bar_high as u64) << 32) | (bar_low as u64);
         Ok(bar)
     }
+
+}
+
+
+ /** @brief 指定された MSI ケーパビリティ構造を読み取る
+   *
+   * @param dev  MSI ケーパビリティを読み込む PCI デバイス
+   * @param cap_addr  MSI ケーパビリティレジスタのコンフィグレーション空間アドレス
+   */
+//   MSICapability ReadMSICapability(const Device& dev, uint8_t cap_addr) {
+//     MSICapability msi_cap{};
+
+//     msi_cap.header.data = ReadConfReg(dev, cap_addr);
+//     msi_cap.msg_addr = ReadConfReg(dev, cap_addr + 4);
+
+//     uint8_t msg_data_addr = cap_addr + 8;
+//     if (msi_cap.header.bits.addr_64_capable) {
+//       msi_cap.msg_upper_addr = ReadConfReg(dev, cap_addr + 8);
+//       msg_data_addr = cap_addr + 12;
+//     }
+
+//     msi_cap.msg_data = ReadConfReg(dev, msg_data_addr);
+
+//     if (msi_cap.header.bits.per_vector_mask_capable) {
+//       msi_cap.mask_bits = ReadConfReg(dev, msg_data_addr + 4);
+//       msi_cap.pending_bits = ReadConfReg(dev, msg_data_addr + 8);
+//     }
+
+//     return msi_cap;
+//   }
+
+/**
+*   @brief 指定された MSI ケーパビリティ構造を読み取る
+*/
+fn read_msi_capability(
+    dev: &Device,
+    cap_addr: u8
+) -> MSICapability {
+    let msi_cap: MSICapability;
+
+    msi_cap.header = read_conf_reg(dev, cap_addr);
+    msi_cap.msg_addr = read_conf_reg(dev, cap_addr);
+
+    if msi_cap.header{
+        msi_cap.msg_upper_addr = read_conf_reg(dev, cap_addr + 8);
+        let msg_data_addr = cap_addr + 12;
+    } else {
+        let msg_data_addr = cap_addr + 8;
+    }
+    
+
+    msi_cap.msg_data = read_conf_reg(dev, msg_data_addr);
+
+    if msi_cap.header{
+        msi_cap.mask_bits = read_conf_reg(dev, msg_data_addr + 4);
+        msi_cap.pending_bits = read_conf_reg(dev, msg_data_addr + 8);
+    }
+
+    msi_cap
+}
+
+
+/**
+*   @brief 指定された MSI レジスタを設定する
+*/
+fn configure_msi_register(
+    dev: &Device,
+    cap_addr: u8,
+    msg_addr: u32,
+    msg_data: u32,
+    num_vector_exponent: u32,
+) -> Result<(), Error> {
+
+    let msi_cap = read_msi_capability(dev, cap_addr);
+
+
+    Ok(())
+
+    // auto msi_cap = ReadMSICapability(dev, cap_addr);
+
+    // if (msi_cap.header.bits.multi_msg_capable <= num_vector_exponent) {
+    //   msi_cap.header.bits.multi_msg_enable =
+    //     msi_cap.header.bits.multi_msg_capable;
+    // } else {
+    //   msi_cap.header.bits.multi_msg_enable = num_vector_exponent;
+    // }
+
+    // msi_cap.header.bits.msi_enable = 1;
+    // msi_cap.msg_addr = msg_addr;
+    // msi_cap.msg_data = msg_data;
+
+    // WriteMSICapability(dev, cap_addr, msi_cap);
+    // return MAKE_ERROR(Error::kSuccess);
+}
+
+/**
+*   @brief 指定された MSI レジスタを設定する
+*/
+fn configure_msix_register(
+    _dev: &Device,
+    _cap_addr: u8,
+    _msg_addr: u32,
+    _msg_data: u32,
+    _num_vector_exponent: u32,
+) -> KResult<()> {
+    Err(KError::NotImplemented)
+}
+
+fn configure_msi(
+    dev: &Device,
+    msg_addr: u32,
+    msg_data: u32,
+    num_vector_exponent: u32,
+) -> KResult<()> {
+
+}
+
+pub fn configure_msi_fixed_destination() {
 
 }

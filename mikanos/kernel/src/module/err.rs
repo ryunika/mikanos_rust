@@ -4,4 +4,5 @@ pub type KResult<T> = core::result::Result<T, KError>;
 pub enum KError {
     Full,
     IndexOutOfRange,
+    NotImplemented,
 }

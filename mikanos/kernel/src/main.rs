@@ -22,6 +22,13 @@ use crate::module::pci::read_bar;
 use module::pci::Pci;
 use module::pci::Device;
 
+use module::interrupt::set_idt_entry;
+use module::interrupt::load_idt;
+use module::interrupt::notify_end_of_interrupt;
+use module::interrupt::DescriptorType;
+use module::interrupt::InterruptVector;
+
+
 /* マウスオブザーバーコールバック用のグローバル変数
  * extern "C" fn はクロージャを持てないため static mut を使用する */
 static mut GLOBAL_WRITER: Option<PixelWriter> = None;
@@ -99,6 +106,9 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
         }
     };
 
+    set_idt_entry(InterruptVector::XHCI, int_handler_xhci as u64);
+    load_idt();
+
     let xhc_mmio_base = (xhc_bar & !0xfu64) as usize;
 
     /* マウスオブザーバー用にライターと背景色を保存 */
@@ -127,6 +137,13 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
             }
         }
     }
+}
+
+extern "x86-interrupt" fn int_handler_xhci(_: *const InterruptFrame) {
+    while usb::global::controller().has_event() {
+        usb::global::controller().process_event();
+    }
+    notify_end_of_interrupt();
 }
 
 #[panic_handler]
