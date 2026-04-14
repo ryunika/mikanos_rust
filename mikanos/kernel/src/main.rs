@@ -21,6 +21,7 @@ use crate::module::pci::read_bar;
 
 use module::pci::Pci;
 use module::pci::Device;
+use module::pci;
 
 use module::interrupt::set_idt_entry;
 use module::interrupt::load_idt;
@@ -108,6 +109,19 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
 
     set_idt_entry(InterruptVector::XHCI, int_handler_xhci as u64);
     load_idt();
+
+    let bsp_local_apic_id: u8 = unsafe {                                                                                                                
+        let ptr = 0xfee00020usize as *const u32;                                                                                                        
+        (ptr.read_volatile() >> 24) as u8                                                                                                               
+    };     
+
+    pci::configure_msi_fixed_destination(
+        &xhc_dev,
+        bsp_local_apic_id,
+        pci::MSITriggerMode::Level,
+        pci::MSIDeliveryMode::Fixed,
+        InterruptVector::XHCI as u8,
+        0);
 
     let xhc_mmio_base = (xhc_bar & !0xfu64) as usize;
 

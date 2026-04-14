@@ -118,10 +118,9 @@ fn set_idt_entry_body(vector :InterruptVector,
 }
 
 pub fn set_idt_entry(vector :InterruptVector,
-                    offset: u64,
-                    segment_selector: u16)
+                    offset: u64)
 {
     let attr = make_idt_attr();
     let cs = get_code_segment();
-    set_idt_entry_body(vector, offset, cs);
+    set_idt_entry_body(vector, attr, offset, cs);
 }
