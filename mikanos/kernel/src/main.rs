@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
+#![feature(inline_const)]  
 
 use core::arch::asm;
 use core::panic;
@@ -30,11 +31,18 @@ use module::interrupt::notify_end_of_interrupt;
 use module::interrupt::InterruptVector;
 use module::interrupt::InterruptFrame;
 
+use module::queue;
+
 
 /* マウスオブザーバーコールバック用のグローバル変数
  * extern "C" fn はクロージャを持てないため static mut を使用する */
 static mut GLOBAL_WRITER: Option<PixelWriter> = None;
 static mut BG_COLOR: PixelColor = PixelColor { r: 45, g: 118, b: 237 };
+
+enum Message {
+    InterruptXHCI
+}
+static mut EVENT_QUEUE:queue::ArrayQueue<Message, 10> = queue::ArrayQueue::new();
 
 extern "C" fn mouse_observer(_buttons: u8, dx: i8, dy: i8) {
     unsafe {
@@ -150,11 +158,33 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
             asm!("hlt");
         }
     }
+
+    unsafe {
+        loop {
+            asm!("cli");
+            if EVENT_QUEUE.count() == 0 {
+                asm!("sti");
+                asm!("hlt");
+                continue;
+            }
+
+            let msg = EVENT_QUEUE.pop().unwrap();
+            asm!("sti");
+
+            match msg {
+                Message::InterruptXHCI => {
+                    while usb::global::controller().has_event() {
+                        usb::global::controller().process_event();
+                    }
+                }
+            }
+        }
+    }
 }
 
 extern "x86-interrupt" fn int_handler_xhci(_: *const InterruptFrame) {
-    while usb::global::controller().has_event() {
-        usb::global::controller().process_event();
+    unsafe {
+        EVENT_QUEUE.push(Message::InterruptXHCI);
     }
     notify_end_of_interrupt();
 }
