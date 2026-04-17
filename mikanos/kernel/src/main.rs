@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
 
 use core::arch::asm;
 use core::panic;
@@ -26,8 +27,8 @@ use module::pci;
 use module::interrupt::set_idt_entry;
 use module::interrupt::load_idt;
 use module::interrupt::notify_end_of_interrupt;
-use module::interrupt::DescriptorType;
 use module::interrupt::InterruptVector;
+use module::interrupt::InterruptFrame;
 
 
 /* マウスオブザーバーコールバック用のグローバル変数
@@ -143,12 +144,10 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
         }
     }
 
-    /* イベントループ（ビジーポーリング: sti 未設定のため hlt は使えない） */
-    loop {
-        if usb::global::is_initialized() {
-            while usb::global::controller().has_event() {
-                usb::global::controller().process_event();
-            }
+   unsafe {
+        asm!("sti"); /* 割り込みを有効化 */
+        loop {
+            asm!("hlt");
         }
     }
 }

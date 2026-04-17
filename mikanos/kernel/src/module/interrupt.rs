@@ -1,4 +1,13 @@
-static mut IDT: [InterruptDescriptor; 256];
+use core::arch::asm;
+
+static mut IDT: [InterruptDescriptor; 256] = [InterruptDescriptor {
+    offset_low: 0,
+    segment_selector: 0,
+    attr: 0,
+    offset_middle: 0,
+    offset_high: 0,
+    reserved: 0,
+}; 256];
 
 
 pub enum InterruptVector {
@@ -11,7 +20,7 @@ pub struct InterruptFrame {
     rflags: u64,
     rsp: u64,
     ss: u64,
-};
+}
 
 /* 記述子の種類(InterruptGateとkTrapGateのみ設定可能) */
 enum DescriptorType {
@@ -25,7 +34,8 @@ enum DescriptorType {
 }
 
 
-#[repr(C, packed)] 
+#[derive(Copy, Clone)]
+#[repr(C, packed)]
 struct InterruptDescriptor {
     offset_low: u16,
     segment_selector: u16,
@@ -65,7 +75,7 @@ fn load_idt_body(limit: u16, offset: u64) {
 */
 pub fn load_idt() {
     unsafe {
-        let limit = core::mem::size_of_val(&IDT - 1) as u16;
+        let limit = (core::mem::size_of_val(&IDT) - 1) as u16;
         let offset = IDT.as_ptr() as u64;
         load_idt_body(limit, offset);
     }
@@ -99,7 +109,7 @@ fn make_idt_attr_body(present: u8,desc_type: DescriptorType, descriptor_privileg
 
 pub fn make_idt_attr() -> u16
 {
-    make_idt_attr_body(1,kInterruptGate, 0, 0)
+    make_idt_attr_body(1, DescriptorType::InterruptGate, 0, 0)
 }
 
 /**
@@ -109,12 +119,14 @@ fn set_idt_entry_body(vector :InterruptVector,
                     attr: u16,
                     offset: u64,
                     segment_selector: u16) {
-    desc :&InterruptDescriptor = IDT[vector];
-    desc.attr = attr;
-    desc.offset_low = offset as u16;
-    desc.offset_middle = (offset >> 16) as u16;
-    desc.offset_high = (offset >> 32) as u32;
-    desc.segment_selector = segment_selector;
+    unsafe {
+        let desc = &mut IDT[vector as usize];
+        desc.attr = attr;
+        desc.offset_low = offset as u16;
+        desc.offset_middle = (offset >> 16) as u16;
+        desc.offset_high = (offset >> 32) as u32;
+        desc.segment_selector = segment_selector;
+    }
 }
 
 pub fn set_idt_entry(vector :InterruptVector,

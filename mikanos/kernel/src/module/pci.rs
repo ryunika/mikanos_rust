@@ -46,7 +46,6 @@ impl MsiCapabilityHeader {
 *   @note ケーパビリティ構造は 64 ビットサポートの有無などで亜種が沢山ある．
 *         この構造体は各亜種に対応するために最大の亜種に合わせてメンバを定義してある．
 */
-#[repr(C, packed)]
 struct MSICapability {
     header: MsiCapabilityHeader,
     msg_addr: u32,
@@ -369,6 +368,7 @@ fn read_conf_reg(dev: &Device, reg_addr: u8) -> u32 {
 
 fn write_conf_reg(dev: &Device, reg_addr: u8, value: u32) {
     let address = make_address(dev.bus, dev.device, dev.function, reg_addr);
+    write_address(address);
     write_data(value);
 }
 
@@ -437,18 +437,21 @@ fn read_msi_capability(
     dev: &Device,
     cap_addr: u8
 ) -> MSICapability {
-    let msi_cap: MSICapability;
+    let mut msi_cap = MSICapability {
+        header: MsiCapabilityHeader { data: read_conf_reg(dev, cap_addr) },
+        msg_addr: read_conf_reg(dev, cap_addr + 4),
+        msg_upper_addr: 0,
+        msg_data: 0,
+        mask_bits: 0,
+        pending_bits: 0,
+    };
 
-    msi_cap.header.data = read_conf_reg(dev, cap_addr);
-    msi_cap.msg_addr = read_conf_reg(dev, cap_addr);
-
-    if msi_cap.header.addr_64_capable() {
+    let msg_data_addr = if msi_cap.header.addr_64_capable() {
         msi_cap.msg_upper_addr = read_conf_reg(dev, cap_addr + 8);
-        let msg_data_addr = cap_addr + 12;
+        cap_addr + 12
     } else {
-        let msg_data_addr = cap_addr + 8;
-    }
-    
+        cap_addr + 8
+    };
 
     msi_cap.msg_data = read_conf_reg(dev, msg_data_addr);
 
@@ -533,9 +536,7 @@ fn configure_msix_register(
 }
 
 fn read_capability_header(dev: &Device, cap_addr: u8) -> MsiCapabilityHeader {
-    let mut header :MsiCapabilityHeader;
-    header.data = read_conf_reg(dev, cap_addr);
-    header
+    MsiCapabilityHeader { data: read_conf_reg(dev, cap_addr) }
 }
 
 fn configure_msi(
@@ -576,6 +577,7 @@ fn configure_msi(
 //     kLevel = 1
 //   };
 
+#[derive(PartialEq)]
 pub enum MSITriggerMode {
     Edge = 0,
     Level = 1
@@ -598,8 +600,8 @@ pub fn configure_msi_fixed_destination(
     vector: u8,
     num_vector_exponent: u32
 ) -> KResult<()> {
-    let mut msg_addr: u32 = 0xfee00000_u32 | (apic_id << 12);
-    let mut msg_data: u32 = delivery_mode << 8 | vector;
+    let mut msg_addr: u32 = 0xfee00000_u32 | ((apic_id as u32) << 12);
+    let mut msg_data: u32 = (delivery_mode as u32) << 8 | (vector as u32);
 
     if trigger_mode == MSITriggerMode::Level {
         msg_data |= 0xc000;
