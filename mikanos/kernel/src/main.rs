@@ -152,19 +152,11 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
         }
     }
 
-   unsafe {
-        asm!("sti"); /* 割り込みを有効化 */
-        loop {
-            asm!("hlt");
-        }
-    }
-
     unsafe {
         loop {
             asm!("cli");
             if EVENT_QUEUE.count() == 0 {
-                asm!("sti");
-                asm!("hlt");
+                asm!("sti\n\thlt");
                 continue;
             }
 
