@@ -59,7 +59,8 @@
 			"settings": {
 				"rust-analyzer.linkedProjects": [
    					"${containerWorkspaceFolder}/mikanos/kernel/Cargo.toml"
-  				]
+  				],
+				"rust-analyzer.check.extraArgs": ["--", "-Z", "unstable-options"]
 			}
 		}
 	},
