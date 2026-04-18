@@ -14,6 +14,7 @@ pub enum InterruptVector {
     XHCI = 0x40,
 }
 
+#[allow(dead_code)]
 pub struct InterruptFrame {
     rip: u64,
     cs: u64,
@@ -23,6 +24,7 @@ pub struct InterruptFrame {
 }
 
 /* 記述子の種類(InterruptGateとkTrapGateのみ設定可能) */
+#[allow(dead_code)]
 enum DescriptorType {
     Upper8Bytes   = 0,
     LDT           = 2,

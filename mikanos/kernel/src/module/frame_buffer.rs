@@ -116,6 +116,7 @@ impl PixelWriter {
         }
     }
 
+    #[allow(dead_code)]
     pub fn write_string(&self, x: u32, y: u32, s: &str, color: &PixelColor) {
         for (i, c) in s.chars().enumerate() {
             self.write_ascii((x as usize + HANKAKU_FONT_WIDTH * i) as u32, y, c, color);

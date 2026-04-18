@@ -82,6 +82,7 @@ pub mod global {
         unsafe { CONTROLLER.as_ref().unwrap() }
     }
 
+    #[allow(dead_code)]
     pub fn is_initialized() -> bool {
         unsafe { CONTROLLER.is_some() }
     }

@@ -57,6 +57,7 @@ impl<T, const N: usize> ArrayQueue<T, N> {
         self.count
     }
 
+    #[allow(dead_code)]
     pub fn capacity(&self) -> usize {
         N
     }

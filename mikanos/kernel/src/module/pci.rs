@@ -28,12 +28,14 @@ impl MsiCapabilityHeader {
     fn next_ptr(self) -> u8 {
         ((self.data >> Self::NEXT_PTR_SHIFT) & Self::BYTE_MASK) as u8
     }
+    #[allow(dead_code)]
     fn msi_enable(self) -> bool {
         (self.data >> Self::MSI_ENABLE_SHIFT) & Self::BIT_MASK != 0
     }
     fn multi_msg_capable(self) -> u8 {
         ((self.data >> Self::MULTI_MSG_CAPABLE_SHIFT) & Self::THREE_BIT_MASK) as u8
     }
+    #[allow(dead_code)]
     fn multi_msg_enable(self) -> u8 {
         ((self.data >> Self::MULTI_MSG_ENABLE_SHIFT) & Self::THREE_BIT_MASK) as u8
     }
@@ -87,6 +89,7 @@ pub struct Device {
     bus: u8,
     device: u8,
     function: u8,
+    #[allow(dead_code)]
     header_type: u8,
     pub class_code: ClassCode,
 }
@@ -126,6 +129,7 @@ impl Pci {
     /**
     * @brief 発見したデバイスの情報を表示する
     */
+    #[allow(dead_code)]
     pub fn show_device(&self, console: &mut impl core::fmt::Write) {
         for i in 0..self.num_device {
             let dev = &self.devices[i];
@@ -320,7 +324,7 @@ fn make_address(bus: u8, device: u8, function: u8, offset: u8) -> u32 {
     address |= ((bus as u32) << BUS_NUM_SHIFT) as u32;
     address |= ((device as u32) << DEVICE_NUM_SHIFT) as u32;
     address |= ((function as u32) << FUNCTION_NUM_SHIFT) as u32;
-    address |= ((offset & 0xfcu8) as u32);
+    address |= (offset & 0xfcu8) as u32;
 
     address
 }
@@ -583,11 +587,13 @@ fn configure_msi(
 //   };
 
 #[derive(PartialEq)]
+#[allow(dead_code)]
 pub enum MSITriggerMode {
     Edge = 0,
     Level = 1,
 }
 
+#[allow(dead_code)]
 pub enum MSIDeliveryMode {
     Fixed = 0b000,
     LowestPriority = 0b001,
@@ -605,7 +611,7 @@ pub fn configure_msi_fixed_destination(
     vector: u8,
     num_vector_exponent: u32,
 ) -> KResult<()> {
-    let mut msg_addr: u32 = 0xfee00000_u32 | ((apic_id as u32) << 12);
+    let msg_addr: u32 = 0xfee00000_u32 | ((apic_id as u32) << 12);
     let mut msg_data: u32 = (delivery_mode as u32) << 8 | (vector as u32);
 
     if trigger_mode == MSITriggerMode::Level {
