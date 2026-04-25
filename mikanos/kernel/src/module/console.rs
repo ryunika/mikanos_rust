@@ -89,21 +89,3 @@ impl fmt::Write for Console {
         Ok(())
     }
 }
-
-pub(crate) static mut CONSOLE: Option<Console> = None;
-
-pub fn init(fg_color: PixelColor, bg_color: PixelColor) {
-    unsafe { CONSOLE = Some(Console::new(fg_color, bg_color)); }
-}
-
-macro_rules! println {
-    ($($arg:tt)*) => {
-        unsafe {
-            if let Some(ref mut c) = crate::module::console::CONSOLE {
-                core::fmt::Write::write_fmt(c, format_args!($($arg)*)).unwrap();
-                core::fmt::Write::write_str(c, "\n").unwrap();
-            }
-        }
-    };
-}
-pub(crate) use println;
