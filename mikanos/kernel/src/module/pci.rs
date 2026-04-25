@@ -147,7 +147,7 @@ impl Pci {
                 class_code.sub,
                 class_code.interface,
                 dev.header_type
-            );
+            ).unwrap();
         }
     }
 
