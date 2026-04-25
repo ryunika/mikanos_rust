@@ -89,19 +89,19 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
     /* 初期マウスカーソルを描画 */
     mouse::draw(&writer);
 
-    write!(&mut console, "Hello, MikanOS Console!\n");
+    write!(&mut console, "Hello, MikanOS Console!\n").ok();
     console.refresh(&writer);
 
     let mut pci = Pci::new();
     if let Err(_) = pci.scan_all_bus() {
-        write!(&mut console, "PCI scan failed.\n");
+        write!(&mut console, "PCI scan failed.\n").ok();
     }
 
     /* xHCI デバイスを探す */
     let xhc_dev = match find_xhc_device(&pci) {
         Some(dev) => dev,
         None => {
-            write!(&mut console, "xHC device not found.\n");
+            write!(&mut console, "xHC device not found.\n").ok();
             console.refresh(&writer);
             panic!("xHC device not found.");
         }
@@ -110,7 +110,7 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
     let xhc_bar = match read_bar(&xhc_dev, 0) {
         Ok(bar) => bar,
         Err(_) => {
-            write!(&mut console, "ReadBar failed.\n");
+            write!(&mut console, "ReadBar failed.\n").ok();
             console.refresh(&writer);
             panic!("ReadBar failed.");
         }
@@ -124,7 +124,7 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
         (ptr.read_volatile() >> 24) as u8                                                                                                               
     };     
 
-    pci::configure_msi_fixed_destination(
+    let _ = pci::configure_msi_fixed_destination(
         &xhc_dev,
         bsp_local_apic_id,
         pci::MSITriggerMode::Level,
@@ -147,7 +147,7 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
             xhc.configure_ports();
         }
         Err(code) => {
-            write!(&mut console, "USB init failed: {}\n", code);
+            write!(&mut console, "USB init failed: {}\n", code).ok();
             console.refresh(&writer);
         }
     }
@@ -176,7 +176,7 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
 
 extern "x86-interrupt" fn int_handler_xhci(_: *const InterruptFrame) {
     unsafe {
-        EVENT_QUEUE.push(Message::InterruptXHCI);
+        let _ = EVENT_QUEUE.push(Message::InterruptXHCI);
     }
     notify_end_of_interrupt();
 }
