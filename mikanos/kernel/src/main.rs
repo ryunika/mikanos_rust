@@ -15,8 +15,8 @@ use module::frame_buffer::FrameBuffer;
 use module::frame_buffer::PixelColor;
 use module::frame_buffer::PixelWriter;
 
-use module::console::Console;
-use core::fmt::Write;
+use module::console;
+use module::console::println;
 
 use crate::module::frame_buffer::Vector2D;
 use crate::module::pci::read_bar;
@@ -84,25 +84,25 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
 
     writer.draw_rectangle(Vector2D{x: 10, y: frame_height - 40}, Vector2D{x: 30, y: 30}, &PixelColor { r: 160, g: 160, b: 160 });
 
-    let mut console = Console::new(fg_color, bg_color);
+    console::init(fg_color, bg_color);
 
     /* 初期マウスカーソルを描画 */
     mouse::draw(&writer);
 
-    write!(&mut console, "Hello, MikanOS Console!\n").ok();
-    console.refresh(&writer);
+    println!("Hello, MikanOS Console!");
+    unsafe { console::CONSOLE.as_mut().unwrap().refresh(&writer); }
 
     let mut pci = Pci::new();
     if let Err(_) = pci.scan_all_bus() {
-        write!(&mut console, "PCI scan failed.\n").ok();
+        println!("PCI scan failed.");
     }
 
     /* xHCI デバイスを探す */
     let xhc_dev = match find_xhc_device(&pci) {
         Some(dev) => dev,
         None => {
-            write!(&mut console, "xHC device not found.\n").ok();
-            console.refresh(&writer);
+            println!("xHC device not found.");
+            unsafe { console::CONSOLE.as_mut().unwrap().refresh(&writer); }
             panic!("xHC device not found.");
         }
     };
@@ -110,8 +110,8 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
     let xhc_bar = match read_bar(&xhc_dev, 0) {
         Ok(bar) => bar,
         Err(_) => {
-            write!(&mut console, "ReadBar failed.\n").ok();
-            console.refresh(&writer);
+            println!("ReadBar failed.");
+            unsafe { console::CONSOLE.as_mut().unwrap().refresh(&writer); }
             panic!("ReadBar failed.");
         }
     };
@@ -147,8 +147,8 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
             xhc.configure_ports();
         }
         Err(code) => {
-            write!(&mut console, "USB init failed: {}\n", code).ok();
-            console.refresh(&writer);
+            println!("USB init failed: {}", code);
+            unsafe { console::CONSOLE.as_mut().unwrap().refresh(&writer); }
         }
     }
 
