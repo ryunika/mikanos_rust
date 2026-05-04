@@ -142,6 +142,11 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
 
     console::init(fg_color, bg_color);
 
+    /* panicハンドラ用にライターを早期に保存 */
+    unsafe {
+        GLOBAL_WRITER = Some(PixelWriter::new(fb));
+    }
+
     /* 初期マウスカーソルを描画 */
     mouse::draw(&writer);
 
@@ -182,7 +187,9 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
     initialize_interrupt();
 
     /* Breakpoint例外のテスト */
-    // unsafe { asm!("int3"); }
+    unsafe {
+        asm!("int3");
+    }
 
     let bsp_local_apic_id: u8 = unsafe {
         let ptr = 0xfee00020usize as *const u32;
@@ -199,11 +206,6 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
     );
 
     let xhc_mmio_base = (xhc_bar & !0xfu64) as usize;
-
-    /* マウスオブザーバー用にライターと背景色を保存 */
-    unsafe {
-        GLOBAL_WRITER = Some(PixelWriter::new(fb));
-    }
 
     /* USB xHCI コントローラーを初期化 */
     match usb::global::initialize(xhc_mmio_base) {
@@ -250,8 +252,12 @@ extern "x86-interrupt" fn int_handler_xhci(_: *const InterruptFrame) {
 }
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("{}", info);
     unsafe {
+        if let (Some(ref mut c), Some(ref w)) = (&mut console::CONSOLE, &GLOBAL_WRITER) {
+            c.refresh(w);
+        }
         loop {
             asm!("hlt");
         }

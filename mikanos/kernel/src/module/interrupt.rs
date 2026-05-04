@@ -291,14 +291,13 @@ fn _fault_handler_with_error(name: &str, frame: *const InterruptFrame, error_cod
     let f = unsafe { frame.as_ref() }.unwrap();
     print_frame(f, name);
     println!("ERR {:x}", error_code);
-
-    panic!("ReadBar failed.");
+    panic!("{}", name);
 }
 
 fn _fault_handler_no_error(name: &str, frame: *const InterruptFrame) {
     let f = unsafe { frame.as_ref() }.unwrap();
     print_frame(f, name);
-    panic!("ReadBar failed.");
+    panic!("{}", name);
 }
 
 pub fn initialize_interrupt() {
