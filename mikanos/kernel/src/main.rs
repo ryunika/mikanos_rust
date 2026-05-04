@@ -186,11 +186,6 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer) -> ! {
     set_idt_entry(InterruptVector::XHCI, int_handler_xhci as u64);
     initialize_interrupt();
 
-    /* Breakpoint例外のテスト */
-    unsafe {
-        asm!("int3");
-    }
-
     let bsp_local_apic_id: u8 = unsafe {
         let ptr = 0xfee00020usize as *const u32;
         (ptr.read_volatile() >> 24) as u8
