@@ -4,4 +4,5 @@
 *.DS_Store
 *.bin
 *.EFI
+*.pdf
 target/
