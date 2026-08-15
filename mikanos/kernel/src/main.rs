@@ -1,9 +1,11 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
+#![feature(asm_const)]
+#![feature(asm_sym)]
 #![feature(inline_const)]
 
-use core::arch::asm;
+use core::arch::{asm, global_asm};
 use core::panic;
 use core::panic::PanicInfo;
 
@@ -37,7 +39,7 @@ use core::ffi::c_void;
 
 /* UEFI BOOT側と同じ定義を使う */
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct MemoryMap {
     pub buffer_size: u64,
     pub buffer: *mut c_void,
@@ -46,6 +48,30 @@ pub struct MemoryMap {
     pub descriptor_size: u64,
     pub descriptor_version: u32,
 }
+
+const KERNEL_MAIN_STACK_SIZE: usize = 1024 * 1024;
+
+#[repr(C, align(16))]
+struct KernelMainStack([u8; KERNEL_MAIN_STACK_SIZE]);
+
+#[no_mangle]
+static mut kernel_main_stack: KernelMainStack = KernelMainStack([0; KERNEL_MAIN_STACK_SIZE]);
+
+/* スタックを付け替えて、Rustのエントリポイントを呼ぶ */
+global_asm!(
+    r#"
+    .global kernel_main
+kernel_main:
+    lea rsp, [rip + {kernel_main_stack} + {kernel_main_stack_size}]
+    call {kernel_main_new_stack}
+.Lfin:
+    hlt
+    jmp .Lfin
+"#,
+    kernel_main_stack = sym kernel_main_stack,
+    kernel_main_stack_size = const KERNEL_MAIN_STACK_SIZE,
+    kernel_main_new_stack = sym kernel_main_new_stack,
+);
 
 /* UEFI BOOT側と同じ定義を使う */
 #[derive(Eq, PartialEq)]
@@ -147,7 +173,14 @@ fn find_xhc_device(pci: &Pci) -> Option<Device> {
 }
 
 #[no_mangle]
-extern "C" fn kernel_main(fb: *mut FrameBuffer, memory_map: &'static MemoryMap) -> ! {
+extern "C" fn kernel_main_new_stack(
+    frame_buffer_config_ref: *const FrameBuffer,
+    memory_map_ref: *const MemoryMap,
+) -> ! {
+    let mut frame_buffer_config = unsafe { (*frame_buffer_config_ref).clone() };
+    let memory_map = unsafe { *memory_map_ref };
+    let fb = &mut frame_buffer_config as *mut FrameBuffer;
+
     let writer = PixelWriter::new(fb);
 
     let frame_width = writer.horizotanal_resolution;
@@ -291,7 +324,7 @@ extern "C" fn kernel_main(fb: *mut FrameBuffer, memory_map: &'static MemoryMap) 
         }
     }
 
-    println!("memory_map: {:p}", memory_map);
+    println!("memory_map: {:p}", &memory_map);
     let buffer = memory_map.buffer as usize;
 
     let available_memory_types = [
