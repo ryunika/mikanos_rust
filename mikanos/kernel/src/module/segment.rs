@@ -1,4 +1,4 @@
-use core::arch::asm;
+use core::arch::{asm, global_asm};
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]
@@ -100,6 +100,9 @@ fn set_data_segment(
     desc.0 |= 1 << 54;
 }
 
+/**
+*   @brief GDTRレジスタにロードする
+*/
 fn load_gdt(limit: u16, offset: u64) {
     #[repr(C, packed)]
     struct Gdtr {
@@ -118,8 +121,51 @@ fn load_gdt(limit: u16, offset: u64) {
     }
 }
 
+fn set_ds_all() {
+    let null_selector: u16 = 0;
+
+    unsafe {
+        asm!(
+            "mov ds, {selector:x}",
+            "mov es, {selector:x}",
+            "mov fs, {selector:x}",
+            "mov gs, {selector:x}",
+            selector = in(reg) null_selector,
+            options(nostack, preserves_flags),
+        );
+    }
+}
+
+const KERNEL_CS: u16 = 1 << 3;
+const KERNEL_SS: u16 = 2 << 3;
+
+global_asm!(
+    r#"
+    .global set_cs_ss
+set_cs_ss:
+    push rbp
+    mov rbp, rsp
+
+    mov ss, si
+
+    lea rax, [rip + .Lset_cs_ss_next]
+    push rdi
+    push rax
+    retfq
+
+.Lset_cs_ss_next:
+    mov rsp, rbp
+    pop rbp
+    ret
+"#
+);
+
+extern "C" {
+    fn set_cs_ss(code_segment: u16, stack_segment: u16);
+}
+
 /**
-*   @brief GDTを構築してロード
+*   @brief GDTを構築してロードし、セグメントレジスタを切り替える
 */
 pub fn setup_segments() {
     unsafe {
@@ -135,5 +181,9 @@ pub fn setup_segments() {
         let offset = core::ptr::addr_of!(GDT) as u64;
 
         load_gdt(GDT_LIMIT, offset);
+
+        /* セグメントレジスタを切り替える */
+        set_ds_all();
+        set_cs_ss(KERNEL_CS, KERNEL_SS);
     }
 }

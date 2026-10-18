@@ -35,6 +35,8 @@ use module::interrupt::InterruptVector;
 
 use module::queue;
 
+use module::segment::setup_segments;
+
 use core::ffi::c_void;
 
 /* UEFI BOOT側と同じ定義を使う */
@@ -261,6 +263,8 @@ extern "C" fn kernel_main_new_stack(
     unsafe {
         console::CONSOLE.as_mut().unwrap().refresh(&writer);
     }
+
+    setup_segments();
 
     let mut pci = Pci::new();
     if let Err(_) = pci.scan_all_bus() {
