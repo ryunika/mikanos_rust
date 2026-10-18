@@ -35,22 +35,10 @@ use module::interrupt::InterruptVector;
 
 use module::queue;
 
+use module::memory_manager;
+use module::memory_map::{is_available, MemoryDescriptor, MemoryMap, UEFI_PAGE_SIZE};
 use module::paging::setup_identity_page_table;
 use module::segment::setup_segments;
-
-use core::ffi::c_void;
-
-/* UEFI BOOT側と同じ定義を使う */
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct MemoryMap {
-    pub buffer_size: u64,
-    pub buffer: *mut c_void,
-    pub map_size: u64,
-    pub map_key: u64,
-    pub descriptor_size: u64,
-    pub descriptor_version: u32,
-}
 
 const KERNEL_MAIN_STACK_SIZE: usize = 1024 * 1024;
 
@@ -75,66 +63,6 @@ kernel_main:
     kernel_main_stack_size = const KERNEL_MAIN_STACK_SIZE,
     kernel_main_new_stack = sym kernel_main_new_stack,
 );
-
-/* UEFI BOOT側と同じ定義を使う */
-#[derive(Eq, PartialEq)]
-#[warn(dead_code)]
-#[repr(C)]
-pub struct MemoryDescriptor {
-    pub memory_type: u32,
-    pub physical_start: usize,
-    pub virtual_start: usize,
-    pub number_of_pages: u64,
-    pub attribute: u64,
-}
-
-/* UEFI BOOT側と同じ定義を使う */
-#[warn(dead_code)]
-#[derive(Eq, PartialEq, Debug)]
-#[repr(C)]
-pub enum MemoryType {
-    KEfiReservedMemoryType,
-    KEfiLoaderCode,
-    KEfiLoaderData,
-    KEfiBootServicesCode,
-    KEfiBootServicesData,
-    KEfiRuntimeServicesCode,
-    KEfiRuntimeServicesData,
-    KEfiConventionalMemory,
-    KEfiUnusableMemory,
-    KEfiACPIReclaimMemory,
-    KEfiACPIMemoryNVS,
-    KEfiMemoryMappedIO,
-    KEfiMemoryMappedIOPortSpace,
-    KEfiPalCode,
-    KEfiPersistentMemory,
-    KEfiMaxMemoryType,
-}
-
-impl TryFrom<u32> for MemoryType {
-    type Error = u32;
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Self::KEfiReservedMemoryType),
-            1 => Ok(Self::KEfiLoaderCode),
-            2 => Ok(Self::KEfiLoaderData),
-            3 => Ok(Self::KEfiBootServicesCode),
-            4 => Ok(Self::KEfiBootServicesData),
-            5 => Ok(Self::KEfiRuntimeServicesCode),
-            6 => Ok(Self::KEfiRuntimeServicesData),
-            7 => Ok(Self::KEfiConventionalMemory),
-            8 => Ok(Self::KEfiUnusableMemory),
-            9 => Ok(Self::KEfiACPIReclaimMemory),
-            10 => Ok(Self::KEfiACPIMemoryNVS),
-            11 => Ok(Self::KEfiMemoryMappedIO),
-            12 => Ok(Self::KEfiMemoryMappedIOPortSpace),
-            13 => Ok(Self::KEfiPalCode),
-            14 => Ok(Self::KEfiPersistentMemory),
-            15 => Ok(Self::KEfiMaxMemoryType),
-            _ => Err(value),
-        }
-    }
-}
 
 /* マウスオブザーバーコールバック用のグローバル変数
  * extern "C" fn はクロージャを持てないため static mut を使用する */
@@ -267,6 +195,7 @@ extern "C" fn kernel_main_new_stack(
 
     setup_segments();
     setup_identity_page_table();
+    memory_manager::initialize(&memory_map);
 
     let mut pci = Pci::new();
     if let Err(_) = pci.scan_all_bus() {
@@ -333,26 +262,18 @@ extern "C" fn kernel_main_new_stack(
     println!("memory_map: {:p}", &memory_map);
     let buffer = memory_map.buffer as usize;
 
-    let available_memory_types = [
-        MemoryType::KEfiBootServicesCode,
-        MemoryType::KEfiBootServicesData,
-        MemoryType::KEfiConventionalMemory,
-    ];
-
     let mut iter = buffer;
     while iter < buffer + memory_map.map_size as usize {
         let desc = unsafe { &*(iter as *const MemoryDescriptor) };
-        if let Ok(mt) = MemoryType::try_from(desc.memory_type) {
-            if available_memory_types.contains(&mt) {
-                println!(
-                    "type = {}, phys = {:x} - {:x}, pages = {}, attr = {:#08x}",
-                    (*desc).memory_type,
-                    (*desc).physical_start,
-                    (*desc).physical_start + ((*desc).number_of_pages as usize) * 4096 - 1,
-                    (*desc).number_of_pages,
-                    (*desc).attribute
-                );
-            }
+        if is_available(desc.memory_type) {
+            println!(
+                "type = {}, phys = {:x} - {:x}, pages = {}, attr = {:#08x}",
+                (*desc).memory_type,
+                (*desc).physical_start,
+                (*desc).physical_start + ((*desc).number_of_pages as usize) * UEFI_PAGE_SIZE - 1,
+                (*desc).number_of_pages,
+                (*desc).attribute
+            );
         }
         iter += memory_map.descriptor_size as usize;
     }

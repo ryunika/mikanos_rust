@@ -2,6 +2,8 @@ pub mod console;
 pub mod err;
 pub mod frame_buffer;
 pub mod interrupt;
+pub mod memory_manager;
+pub mod memory_map;
 pub mod paging;
 pub mod pci;
 pub mod queue;

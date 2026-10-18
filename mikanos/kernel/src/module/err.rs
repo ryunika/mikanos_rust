@@ -6,5 +6,6 @@ pub enum KError {
     Full,
     IndexOutOfRange,
     NotImplemented,
-    NoPCIMSI
+    NoPCIMSI,
+    NoEnoughMemory,
 }
