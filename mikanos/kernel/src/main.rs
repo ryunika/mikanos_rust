@@ -35,6 +35,7 @@ use module::interrupt::InterruptVector;
 
 use module::queue;
 
+use module::paging::setup_identity_page_table;
 use module::segment::setup_segments;
 
 use core::ffi::c_void;
@@ -265,6 +266,7 @@ extern "C" fn kernel_main_new_stack(
     }
 
     setup_segments();
+    setup_identity_page_table();
 
     let mut pci = Pci::new();
     if let Err(_) = pci.scan_all_bus() {
